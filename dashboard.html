@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - SmartAgriDoctor{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="fw-bold">Welcome, {{ current_user.username }}!</h1>
+            <p class="text-muted">Your plant health management dashboard</p>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-5">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-camera fa-2x text-primary mb-3"></i>
+                    <h5>Disease Detection</h5>
+                    <a href="{{ url_for('disease_detection') }}" class="btn btn-primary btn-sm mt-2">Start</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-robot fa-2x text-primary mb-3"></i>
+                    <h5>AI Chat</h5>
+                    <a href="{{ url_for('chat') }}" class="btn btn-primary btn-sm mt-2">Chat Now</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-clipboard-list fa-2x text-primary mb-3"></i>
+                    <h5>Recommendations</h5>
+                    <a href="{{ url_for('recommendations') }}" class="btn btn-primary btn-sm mt-2">Browse</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-history fa-2x text-primary mb-3"></i>
+                    <h5>Detection History</h5>
+                    <span class="badge bg-primary">{{ history|length }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Detection History -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Detections</h5>
+                </div>
+                <div class="card-body">
+                    {% if history %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Image</th>
+                                    <th>Disease</th>
+                                    <th>Confidence</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for detection in history %}
+                                <tr>
+                                    <td>
+                                        <img src="{{ url_for('static', filename='uploads/' + detection.image_path) }}" 
+                                             alt="Detection" style="width: 50px; height: 50px; object-fit: cover;">
+                                    </td>
+                                    <td>{{ detection.predicted_disease }}</td>
+                                    <td>
+                                        <span class="badge {% if detection.confidence > 0.8 %}bg-success{% elif detection.confidence > 0.6 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ "%.2f"|format(detection.confidence * 100) }}%
+                                        </span>
+                                    </td>
+                                    <td>{{ detection.detection_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted">No detection history yet. <a href="{{ url_for('disease_detection') }}">Start your first detection!</a></p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

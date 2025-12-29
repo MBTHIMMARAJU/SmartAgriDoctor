@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}AI Chat - SmartAgriDoctor{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="fas fa-robot me-2"></i>AI Plant Doctor</h4>
+                    <select id="languageSelect" class="language-selector">
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
+                        <option value="fr">Français</option>
+                        <option value="hi">हिन्दी</option>
+                    </select>
+                </div>
+                <div class="card-body p-0">
+                    <div class="chat-container p-3" id="chatMessages">
+                        {% for message in chat_history %}
+                        <div class="chat-message user-message">
+                            {{ message.message }}
+                        </div>
+                        <div class="chat-message bot-message">
+                            {{ message.response }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <form id="chatForm" class="p-3 border-top">
+                        <div class="input-group">
+                            <textarea id="chatInput" class="form-control" placeholder="Ask about plant diseases, treatments, or prevention methods..." rows="2" required></textarea>
+                            <button id="sendButton" type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Quick Questions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <button class="btn btn-outline-primary w-100 quick-question" data-question="How to treat powdery mildew?">
+                                Powdery Mildew Treatment
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button class="btn btn-outline-primary w-100 quick-question" data-question="What causes yellow leaves?">
+                                Yellow Leaves Causes
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button class="btn btn-outline-primary w-100 quick-question" data-question="Organic pest control methods">
+                                Organic Pest Control
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button class="btn btn-outline-primary w-100 quick-question" data-question="Best practices for plant health">
+                                Plant Health Tips
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Quick question buttons
+    document.querySelectorAll('.quick-question').forEach(button => {
+        button.addEventListener('click', function() {
+            const question = this.getAttribute('data-question');
+            document.getElementById('chatInput').value = question;
+            document.getElementById('chatForm').dispatchEvent(new Event('submit'));
+        });
+    });
+});
+</script>
+{% endblock %}

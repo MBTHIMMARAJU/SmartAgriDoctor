@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Recommendations - SmartAgriDoctor{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="fw-bold">Disease Treatment Recommendations</h1>
+            <p class="text-muted">Expert advice for common plant diseases</p>
+        </div>
+    </div>
+
+    <!-- Search Form -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <form method="GET" class="d-flex">
+                <input type="text" name="disease" class="form-control me-2" placeholder="Search for a disease..." value="{{ search_disease }}">
+                <button type="submit" class="btn btn-primary">Search</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Recommendations List -->
+    <div class="row">
+        {% if recommendations %}
+            {% for rec in recommendations %}
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0 text-primary">{{ rec.disease_name }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-leaf me-2 text-success"></i>Organic Treatment</h6>
+                                <p>{{ rec.organic_treatment or 'Not specified' }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-flask me-2 text-warning"></i>Chemical Treatment</h6>
+                                <p>{{ rec.chemical_treatment or 'Not specified' }}</p>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <h6><i class="fas fa-shield-alt me-2 text-info"></i>Preventive Measures</h6>
+                                <p>{{ rec.preventive_measures or 'Not specified' }}</p>
+                            </div>
+                        </div>
+                        {% if rec.suitable_crops %}
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <h6><i class="fas fa-tractor me-2 text-secondary"></i>Suitable Crops</h6>
+                                <p>{{ rec.suitable_crops }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                        <h5>No recommendations found</h5>
+                        <p class="text-muted">Try searching for a different disease or check back later for updates.</p>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

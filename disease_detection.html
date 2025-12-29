@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{% block title %}Disease Detection - SmartAgriDoctor{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header text-center">
+                    <h4 class="mb-0"><i class="fas fa-camera me-2"></i>Plant Disease Detection</h4>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Camera Section -->
+                    <div class="camera-section mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5><i class="fas fa-camera me-2"></i>Take Live Photo</h5>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="cameraToggle">
+                                <label class="form-check-label" for="cameraToggle">Enable Camera</label>
+                            </div>
+                        </div>
+                        
+                        <div id="cameraContainer" class="text-center" style="display: none;">
+                            <div class="camera-preview mb-3">
+                                <video id="cameraVideo" autoplay playsinline style="max-width: 100%; border-radius: 10px; background: #000;"></video>
+                                <canvas id="cameraCanvas" style="display: none;"></canvas>
+                            </div>
+                            
+                            <div class="camera-controls">
+                                <button id="captureBtn" class="btn btn-success me-2">
+                                    <i class="fas fa-camera me-1"></i>Capture Photo
+                                </button>
+                                <button id="retakeBtn" class="btn btn-warning me-2" style="display: none;">
+                                    <i class="fas fa-redo me-1"></i>Retake
+                                </button>
+                                <button id="uploadCameraBtn" class="btn btn-primary" style="display: none;">
+                                    <i class="fas fa-upload me-1"></i>Analyze Photo
+                                </button>
+                            </div>
+                            
+                            <div id="cameraPreview" class="mt-3 text-center" style="display: none;">
+                                <img id="capturedImage" src="#" alt="Captured" style="max-width: 300px; border-radius: 10px;">
+                            </div>
+                        </div>
+                        
+                        <div id="cameraError" class="alert alert-danger mt-3" style="display: none;">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <span id="cameraErrorText">Camera access failed. Please check permissions.</span>
+                        </div>
+                    </div>
+
+                    <div class="text-center my-3">
+                        <h6 class="text-muted">OR</h6>
+                    </div>
+
+                    <!-- File Upload Section -->
+                    <div class="upload-section">
+                        <h5><i class="fas fa-upload me-2"></i>Upload Image</h5>
+                        <form id="detectionForm" method="POST" enctype="multipart/form-data">
+                            <input type="file" id="fileInput" name="file" accept="image/*" style="display: none;">
+                            
+                            <div class="upload-area mb-4" id="uploadArea">
+                                <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                                <p>Click to upload or drag and drop</p>
+                                <p class="text-muted small">Supports JPG, PNG, GIF (Max 16MB)</p>
+                            </div>
+                            
+                            <div class="text-center mb-4">
+                                <img id="previewImage" src="#" alt="Preview" style="max-width: 100%; max-height: 300px; display: none; border-radius: 10px;">
+                            </div>
+                            
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-search me-2"></i>Analyze Image
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    {% if prediction %}
+                    <div class="prediction-result mt-4">
+                        <h4 class="text-center mb-3">Detection Results</h4>
+                        
+                        <div class="row text-center">
+                            <div class="col-md-6">
+                                <h6>Detected Disease</h6>
+                                <h3 class="fw-bold">{{ prediction }}</h3>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Confidence Level</h6>
+                                <h3 class="fw-bold">{{ "%.2f"|format(confidence * 100) }}%</h3>
+                            </div>
+                        </div>
+                        
+                        {% if image_url %}
+                        <div class="text-center mt-3">
+                            <img src="{{ image_url }}" alt="Analyzed Image" style="max-width: 300px; border-radius: 10px;">
+                        </div>
+                        {% endif %}
+                        
+                        {% if treatment %}
+                        <div class="treatment-box mt-4">
+                            <h5><i class="fas fa-prescription me-2"></i>Treatment Recommendation</h5>
+                            <p class="mb-0">{{ treatment }}</p>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="text-center mt-4">
+                            <a href="{{ url_for('disease_detection') }}" class="btn btn-light">
+                                <i class="fas fa-redo me-2"></i>Analyze Another Image
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Camera functionality
+let cameraStream = null;
+let isCameraActive = false;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const cameraToggle = document.getElementById('cameraToggle');
+    const cameraContainer = document.getElementById('cameraContainer');
+    const cameraVideo = document.getElementById('cameraVideo');
+    const cameraCanvas = document.getElementById('cameraCanvas');
+    const captureBtn = document.getElementById('captureBtn');
+    const retakeBtn = document.getElementById('retakeBtn');
+    const uploadCameraBtn = document.getElementById('uploadCameraBtn');
+    const cameraPreview = document.getElementById('cameraPreview');
+    const capturedImage = document.getElementById('capturedImage');
+    const cameraError = document.getElementById('cameraError');
+    const cameraErrorText = document.getElementById('cameraErrorText');
+    
+    let capturedPhoto = null;
+
+    // Camera toggle
+    cameraToggle.addEventListener('change', function() {
+        if (this.checked) {
+            startCamera();
+        } else {
+            stopCamera();
+        }
+    });
+
+    // Start camera
+    async function startCamera() {
+        try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment', // Prefer rear camera
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                } 
+            });
+            
+            cameraVideo.srcObject = cameraStream;
+            cameraContainer.style.display = 'block';
+            cameraError.style.display = 'none';
+            isCameraActive = true;
+            
+            // Show capture button
+            captureBtn.style.display = 'inline-block';
+            retakeBtn.style.display = 'none';
+            uploadCameraBtn.style.display = 'none';
+            cameraPreview.style.display = 'none';
+            
+        } catch (err) {
+            console.error('Camera error:', err);
+            cameraErrorText.textContent = 'Cannot access camera: ' + err.message;
+            cameraError.style.display = 'block';
+            cameraToggle.checked = false;
+        }
+    }
+
+    // Stop camera
+    function stopCamera() {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            cameraStream = null;
+        }
+        cameraContainer.style.display = 'none';
+        isCameraActive = false;
+    }
+
+    // Capture photo
+    captureBtn.addEventListener('click', function() {
+        if (!isCameraActive) return;
+        
+        const context = cameraCanvas.getContext('2d');
+        cameraCanvas.width = cameraVideo.videoWidth;
+        cameraCanvas.height = cameraVideo.videoHeight;
+        context.drawImage(cameraVideo, 0, 0, cameraCanvas.width, cameraCanvas.height);
+        
+        // Convert to data URL for preview
+        capturedPhoto = cameraCanvas.toDataURL('image/jpeg');
+        capturedImage.src = capturedPhoto;
+        
+        // Show preview and controls
+        cameraPreview.style.display = 'block';
+        retakeBtn.style.display = 'inline-block';
+        uploadCameraBtn.style.display = 'inline-block';
+        captureBtn.style.display = 'none';
+        
+        // Stop camera to save battery
+        stopCamera();
+        cameraToggle.checked = false;
+    });
+
+    // Retake photo
+    retakeBtn.addEventListener('click', function() {
+        capturedPhoto = null;
+        cameraPreview.style.display = 'none';
+        retakeBtn.style.display = 'none';
+        uploadCameraBtn.style.display = 'none';
+        captureBtn.style.display = 'inline-block';
+        
+        // Restart camera
+        cameraToggle.checked = true;
+        startCamera();
+    });
+
+    // Upload and analyze captured photo
+    uploadCameraBtn.addEventListener('click', function() {
+        if (!capturedPhoto) return;
+        
+        // Show loading state
+        uploadCameraBtn.innerHTML = '<span class="loading"></span> Analyzing...';
+        uploadCameraBtn.disabled = true;
+        
+        // Convert data URL to blob
+        fetch(capturedPhoto)
+            .then(res => res.blob())
+            .then(blob => {
+                const formData = new FormData();
+                formData.append('photo', blob, 'camera_photo.jpg');
+                
+                return fetch('/take-photo', {
+                    method: 'POST',
+                    body: formData
+                });
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Redirect to show results
+                    window.location.href = "{{ url_for('disease_detection') }}?camera_result=true";
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Upload error:', error);
+                alert('Error uploading photo: ' + error.message);
+            })
+            .finally(() => {
+                uploadCameraBtn.innerHTML = '<i class="fas fa-upload me-1"></i>Analyze Photo';
+                uploadCameraBtn.disabled = false;
+            });
+    });
+
+    // File upload functionality (existing code)
+    const fileInput = document.getElementById('fileInput');
+    const uploadArea = document.getElementById('uploadArea');
+    const previewImage = document.getElementById('previewImage');
+    
+    if (uploadArea && fileInput) {
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.background = '#e8f5e8';
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.style.background = '';
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.background = '';
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+    }
+    
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            if (this.files && this.files[0]) {
+                handleFileSelect(this.files[0]);
+            }
+        });
+    }
+    
+    function handleFileSelect(file) {
+        if (file.type.match('image.*')) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                if (previewImage) {
+                    previewImage.src = e.target.result;
+                    previewImage.style.display = 'block';
+                }
+                
+                if (uploadArea) {
+                    uploadArea.querySelector('p').textContent = file.name;
+                }
+            };
+            
+            reader.readAsDataURL(file);
+        }
+    }
+    
+    // Form submission loading state
+    const detectionForm = document.getElementById('detectionForm');
+    if (detectionForm) {
+        detectionForm.addEventListener('submit', function() {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="loading"></span> Analyzing...';
+            }
+        });
+    }
+});
+</script>
+
+<style>
+.camera-preview {
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 10px;
+    padding: 20px;
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.camera-controls {
+    margin: 15px 0;
+}
+
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #2e7d32;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+    .camera-preview {
+        min-height: 250px;
+    }
+    
+    .camera-controls .btn {
+        margin-bottom: 10px;
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}
